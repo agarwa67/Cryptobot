@@ -12,6 +12,7 @@ class Coinbase:
             api_secret = config["coinbase_api_liang"]["secret"]
         else:
             print("Account not found. Please add API keys to config.json")
+            exit(1)
         self.client = Client(api_key, api_secret)
 
         self.accumulated_profit_btc = 0
