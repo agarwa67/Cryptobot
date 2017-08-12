@@ -1,6 +1,8 @@
 # Cryptobot
 This is an on-going project to create a useful bot for tracking your cryptocurrency portfolio.
+
 Exchanges supported: Coinbase
+
 Info needed: API key 
 
 Current features:
