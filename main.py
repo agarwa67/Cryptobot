@@ -13,7 +13,7 @@ def main():
 
     # Coinbase
     coinbase = Coinbase(config)
-    coinbase.set_eth_price(150.00)
+    coinbase.set_eth_price(320.00)
     coinbase.calculate_profit_loss()
 
 

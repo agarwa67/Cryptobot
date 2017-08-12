@@ -1,10 +1,17 @@
 from coinbase.wallet.client import Client
-
+from pprint import pprint
 
 class Coinbase:
     def __init__(self, config):
-        api_key = config["coinbase_api"]["key"]
-        api_secret = config["coinbase_api"]["secret"]
+        account = input("Account: ")
+        if account == "Kevin":
+            api_key = config["coinbase_api_kevin"]["key"]
+            api_secret = config["coinbase_api_kevin"]["secret"]
+        elif account == "Liang":
+            api_key = config["coinbase_api_liang"]["key"]
+            api_secret = config["coinbase_api_liang"]["secret"]
+        else:
+            print("Account not found. Please add API keys to config.json")
         self.client = Client(api_key, api_secret)
 
         self.accumulated_profit_btc = 0
@@ -12,6 +19,7 @@ class Coinbase:
 
     def set_eth_price(self, price):
         self.current_eth_price = price
+        # TODO automatically update ETH price
 
     def get_exchange_rate(self, coin="BTC", currency="USD"):
         """ Get BTC - USD exchange rate
@@ -25,6 +33,11 @@ class Coinbase:
 
     def calculate_profit_loss(self):
         self.current_btc_price = float(self.get_exchange_rate("BTC", "USD").amount)
+        # self.current_eth_price = float(self.get_exchange_rate("ETH", "USD").amount)
+
+        # Ask for balance outside of Coinbase
+        BTC_external_balance = float(input('BTC external balance: '))
+        ETH_external_balance = float(input('ETH external balance: '))
 
         # Get all accounts listing
         accounts = self._get_accounts()
@@ -33,20 +46,26 @@ class Coinbase:
         # Read each account
         for account in accounts.data:
             currency = account.balance.currency
-            if currency in ("USD", "LTC") or account.name == "My Vault":
+            if currency in ("USD", "LTC") or account.name == "My Vault": # Ignore these accounts
                 continue
+            print(currency)
 
             print("Calculating currency: {}".format(currency))
             print("{}: {} {}".format(account.name, account.balance.amount, currency))
 
             # Get all transactions
-            transactions = account.get_transactions()
+            transactions = account.get_transactions(start_after="1805ae5b-f65b-5825-b780-9c6cecdec1cf", limit=100)
+            """ Documentation for argument syntax in get_transactions
+                https://github.com/coinbase/coinbase-python/blob/f9ed2249865c2012e3b86106dad5f8c6068366ed/coinbase/wallet/model.py#L168
+            """
+            # TODO regex or some way to find everyones start_after
             for transaction in transactions.data:
                 if transaction.status != "completed":
                         print("Incomplete transaction")
                         continue
 
-                # Calculate for each transaction type
+            # Calculate for each transaction type
+                # Calculate all BUYS
                 if transaction.type == "buy":
                     transaction_id = transaction.buy.id
                     transaction_detail = self._get_buy_transaction(account.id,
@@ -55,23 +74,24 @@ class Coinbase:
                     # Calculate price point during purchase
                     amount_paid = float(transaction_detail.subtotal.amount)  # Before fees
                     coins_bought = float(transaction_detail.amount.amount)
-                    purchase_price = amount_paid / coins_bought
+                    purchase_price = amount_paid / coins_bought # Price of BTC/ETH at time of buying
+                    amount_paid_fees = float(transaction.native_amount.amount) # After fees
 
                     # Calculate profit-loss
                     if currency == "BTC":
-                        self.accumulated_profit_btc += (self.current_btc_price - purchase_price) * coins_bought
-                        print("\tBuy transaction: {}".format((self.current_btc_price - purchase_price) * coins_bought))
+                        self.accumulated_profit_btc -= amount_paid_fees
+                        #TODO prompt user if they want to print all transactions
+                        print("\tBuy transaction: -{}".format(amount_paid_fees))
                     elif currency == "ETH":
-                        self.accumulated_profit_eth += (self.current_eth_price - purchase_price) * coins_bought
-                        print("\tBuy transaction: {}".format((self.current_eth_price - purchase_price) * coins_bought))
+                        self.accumulated_profit_eth -= amount_paid_fees
+                        print("\tBuy transaction: -{}".format(amount_paid_fees))
+                        #TODO prompt user if they want to print all transactions
 
-                elif transaction.type in ("sell", "send"):
+                # Calculate all SELLS
+                elif transaction.type in ("sell"):
                     # Amount received after fees
                     amount_received = float(transaction.native_amount.amount)
-
-                    # Sell should be positive since it is gain
-                    if transaction.type == "sell":
-                        amount_received *= -1
+                    amount_received = amount_received * -1
 
                     # Accumulate profit-loss
                     if currency == "BTC":
@@ -79,17 +99,29 @@ class Coinbase:
                     elif currency == "ETH":
                         self.accumulated_profit_eth += amount_received
 
+                    #TODO prompt user if they want to print all transactions
                     print("\t{} transaction: {}".format(transaction.type.title(), amount_received))
-                else:
-                    print("\tUnknown transaction type: {}".format(transaction.type))
-                    print(transaction)
-                    continue
+
+            # Add current balance in account + current external balance to profit/Loss
+            if currency == "BTC":
+                # BTC_external_value = BTC_external_balance * self.btc_current_price
+                account.balance.amount = float(account.balance.amount)
+                self.accumulated_profit_btc += (BTC_external_balance + account.balance.amount) * self.current_btc_price
+            elif currency == "ETH":
+                # ETH_external_value = ETH_external_balance * self.eth_current_price
+                account.balance.amount = float(account.balance.amount)
+                self.accumulated_profit_eth += (ETH_external_balance + account.balance.amount) * self.current_eth_price
 
             # Print accumulated profit/loss
             if currency == "BTC":
-                print("\nProfit/Loss ({}): {}\n".format(currency, self.accumulated_profit_btc))
+                print("\nProfit/Loss ({}): ${}".format(currency, self.accumulated_profit_btc))
             elif currency == "ETH":
-                print("\nProfit/Loss ({}): {}\n\n".format(currency, self.accumulated_profit_eth))
+                print("\nProfit/Loss ({}): ${}\n".format(currency, self.accumulated_profit_eth))
+
+        # Print total account (BTC + ETH) profit/loss
+        print("Profit/Loss (ALL): ${}\n".format(self.accumulated_profit_btc + self.accumulated_profit_eth))
+        # TODO limit decimal points after float
+
 
     def _get_accounts(self):
         return self.client.get_accounts()
