@@ -17,6 +17,8 @@ class Coinbase:
 
         self.accumulated_profit_btc = 0
         self.accumulated_profit_eth = 0
+        self.total_btc_paid_fees = 0
+        self.total_eth_paid_fees = 0
 
     def set_eth_price(self, price):
         self.current_eth_price = price
@@ -40,6 +42,17 @@ class Coinbase:
         BTC_external_balance = float(input('BTC external balance: '))
         ETH_external_balance = float(input('ETH external balance: '))
 
+        # # Print transactions?
+        # print_transactions = input("Print transactions? ")
+        # if print_transactions == "Y" or "y" or "yes" or "Yes" or "si" or "si patron":
+        #         # do everything inside for then print the following
+        #         print("\tBuy transaction: -{}".format(amount_paid_fees))
+        #         print("\t{} transaction: {}".format(transaction.type.title(), amount_received))
+        # elif print_transactions == "N" or "n" or "no" or "No" or "fk off boi":
+        #         # do everything inside for loop
+        # else:
+        #     print("Answer the question dumbass. Yes or No")
+
         # Get all accounts listing
         accounts = self._get_accounts()
         print("Accounts retrieved: {}\n".format(len(accounts.data)))
@@ -47,7 +60,7 @@ class Coinbase:
         # Read each account
         for account in accounts.data:
             currency = account.balance.currency
-            if currency in ("USD", "LTC") or account.name == "My Vault": # Ignore these accounts
+            if currency in ("USD", "LTC") or account.name == "My Vault": # Ignore these accounts, add USD wallet
                 continue
             print(currency)
 
@@ -62,7 +75,7 @@ class Coinbase:
             # TODO regex or some way to find everyones start_after
             for transaction in transactions.data:
                 if transaction.status != "completed":
-                        print("Incomplete transaction")
+                        print("Incomplete transaction") # indent is all fucked when printing, maybe account for pending transactions
                         continue
 
             # Calculate for each transaction type
@@ -81,10 +94,12 @@ class Coinbase:
                     # Calculate profit-loss
                     if currency == "BTC":
                         self.accumulated_profit_btc -= amount_paid_fees
-                        #TODO prompt user if they want to print all transactions
+                        self.total_btc_paid_fees += amount_paid_fees
                         print("\tBuy transaction: -{}".format(amount_paid_fees))
+                        #TODO prompt user if they want to print all transactions
                     elif currency == "ETH":
                         self.accumulated_profit_eth -= amount_paid_fees
+                        self.total_eth_paid_fees += amount_paid_fees
                         print("\tBuy transaction: -{}".format(amount_paid_fees))
                         #TODO prompt user if they want to print all transactions
 
@@ -108,20 +123,24 @@ class Coinbase:
                 # BTC_external_value = BTC_external_balance * self.btc_current_price
                 account.balance.amount = float(account.balance.amount)
                 self.accumulated_profit_btc += (BTC_external_balance + account.balance.amount) * self.current_btc_price
+                self.percent_profit_btc = self.accumulated_profit_btc / self.total_btc_paid_fees
             elif currency == "ETH":
                 # ETH_external_value = ETH_external_balance * self.eth_current_price
                 account.balance.amount = float(account.balance.amount)
                 self.accumulated_profit_eth += (ETH_external_balance + account.balance.amount) * self.current_eth_price
+                self.percent_profit_eth = self.accumulated_profit_eth / self.total_eth_paid_fees
 
             # Print accumulated profit/loss
             if currency == "BTC":
-                print("\nProfit/Loss ({}): ${}".format(currency, self.accumulated_profit_btc))
+                print("\nProfit/Loss ({}): ${:.2f} or {:.2f}%".format(currency, self.accumulated_profit_btc, (self.percent_profit_btc*100)))
             elif currency == "ETH":
-                print("\nProfit/Loss ({}): ${}\n".format(currency, self.accumulated_profit_eth))
+                print("\nProfit/Loss ({}): ${:.2f} or {:.2f}%\n".format(currency, self.accumulated_profit_eth, (self.percent_profit_eth*100)))
+
+        # TODO balance start --> balance now --> profit
 
         # Print total account (BTC + ETH) profit/loss
-        print("Profit/Loss (ALL): ${}\n".format(self.accumulated_profit_btc + self.accumulated_profit_eth))
-        # TODO limit decimal points after float
+        self.percent_profit_total = (self.accumulated_profit_btc + self.accumulated_profit_eth) / (self.total_eth_paid_fees + self.total_btc_paid_fees) * 100
+        print("Profit/Loss (ALL): ${:.2f} or {:.2f}%\n".format(self.accumulated_profit_btc + self.accumulated_profit_eth, self.percent_profit_total))
 
 
     def _get_accounts(self):
