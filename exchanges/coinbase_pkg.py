@@ -3,11 +3,13 @@ from pprint import pprint
 
 class Coinbase:
     def __init__(self, config):
+        # TODO command-line parameters?
+        # https://docs.python.org/3/library/argparse.html
         account = input("Account: ")
-        if account == "Kevin":
+        if account == "Kevin" or "kevin" or "k":
             api_key = config["coinbase_api_kevin"]["key"]
             api_secret = config["coinbase_api_kevin"]["secret"]
-        elif account == "Liang":
+        elif account == "Liang" or "liang" or "l":
             api_key = config["coinbase_api_liang"]["key"]
             api_secret = config["coinbase_api_liang"]["secret"]
         else:
@@ -76,6 +78,7 @@ class Coinbase:
                 https://github.com/coinbase/coinbase-python/blob/f9ed2249865c2012e3b86106dad5f8c6068366ed/coinbase/wallet/model.py#L168
             """
             # TODO regex or some way to find everyones start_after
+            # https://stackoverflow.com/questions/44351034/pagination-on-coinbase-python-api
             for transaction in transactions.data:
                 if transaction.status != "completed":
                         print("\tIncomplete transaction...")
@@ -98,13 +101,13 @@ class Coinbase:
                     if currency == "BTC":
                         self.accumulated_profit_btc -= amount_paid_fees
                         self.total_btc_paid_fees += amount_paid_fees
-                        print("\tBuy transaction: -{}".format(amount_paid_fees))
                         #TODO prompt user if they want to print all transactions
+                        #print("\tBuy transaction: -{}".format(amount_paid_fees))
                     elif currency == "ETH":
                         self.accumulated_profit_eth -= amount_paid_fees
                         self.total_eth_paid_fees += amount_paid_fees
-                        print("\tBuy transaction: -{}".format(amount_paid_fees))
                         #TODO prompt user if they want to print all transactions
+                        #print("\tBuy transaction: -{}".format(amount_paid_fees)
 
                 # Calculate all SELLS
                 elif transaction.type in ("sell"):
@@ -121,7 +124,7 @@ class Coinbase:
                         self.total_eth_received += amount_received
 
                     #TODO prompt user if they want to print all transactions
-                    print("\t{} transaction: {}".format(transaction.type.title(), amount_received))
+                    #print("\t{} transaction: {}".format(transaction.type.title(), amount_received))
 
             # Add current balance in account + current external balance to profit/Loss
             if currency == "BTC":
